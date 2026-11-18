@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Gold Wings Cinema - Pro Admin</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; color: #1f2937; -webkit-tap-highlight-color: transparent; }
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    
+    .seat { width: 22px; height: 22px; border-radius: 4px; margin: 2px; display: flex; align-items: center; justify-content: center; font-size: 8px; font-weight: 600; cursor: pointer; border: 1px solid #10b981; color: #10b981; background-color: transparent; transition: all 0.1s ease; user-select: none; }
+    .seat.booked { background-color: #d1d5db; border-color: #d1d5db; color: transparent; cursor: not-allowed; }
+    .seat.selected { background-color: #10b981; border-color: #10b981; color: white; }
+    .seat.blocked { opacity: 0.4; cursor: not-allowed; }
+    .aisle { margin-right: 15px; }
+    
+    .screen-box { width: 90%; max-width: 400px; height: 20px; margin: 0 auto; background: linear-gradient(to bottom, #e0f2fe, #bae6fd); border-radius: 50% 50% 0 0; clip-path: polygon(10% 0, 90% 0, 100% 100%, 0% 100%); box-shadow: 0 4px 10px rgba(186, 230, 253, 0.5); }
+    .class-header { display: flex; align-items: center; justify-content: center; gap: 10px; margin: 15px 0; width: 100%; }
+    .class-line { flex-grow: 1; height: 1px; background-color: #e2e8f0; }
+    .class-title { font-size: 10px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; }
+    
+    .nav-tab { color: #64748b; font-weight: 500; padding: 12px 4px; border-bottom: 3px solid transparent; cursor: pointer; transition: all 0.2s; }
+    .nav-tab.active { color: #dc2626; border-bottom: 3px solid #dc2626; font-weight: 700; }
+    
+    @keyframes slideUp { from { transform: translateY(100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+    .animate-slide-up { animation: slideUp 0.3s ease-out forwards; }
+  </style>
+</head>
+<body class="pb-24">
+
+  <header class="bg-white sticky top-0 z-40 shadow-sm border-b border-gray-200">
+    <div class="max-w-5xl mx-auto flex justify-between items-center p-3">
+      <h1 class="text-lg font-bold text-gray-800 cursor-pointer flex items-center gap-2" onclick="switchTab('movies')">
+        <span class="text-2xl">🎬</span> Gold Wings
+      </h1>
+      <div class="flex items-center gap-2">
+        <div id="authSection">
+          <button onclick="openAuthModal()" class="bg-red-600 hover:bg-red-700 text-white px-4 py-1.5 rounded-lg text-xs font-bold transition-colors shadow-sm" id="loginBtnTop">
+            Login / Signup
+          </button>
+          <div id="userProfile" class="hidden flex items-center gap-2">
+            <span class="text-sm font-bold text-gray-800 bg-gray-100 px-3 py-1.5 rounded-lg border border-gray-200" id="usernameDisplay"></span>
+            <button onclick="logout()" class="text-xs text-red-600 font-bold hover:underline">Logout</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="max-w-5xl mx-auto flex gap-6 px-4 mt-1 overflow-x-auto no-scrollbar text-sm" id="mainNav">
+      <div id="tab-movies" class="nav-tab active whitespace-nowrap" onclick="switchTab('movies')">Movies</div>
+      <div id="tab-playzone" class="nav-tab whitespace-nowrap" onclick="switchTab('playzone')">Playzone 🎮</div>
+      <div id="tab-food" class="nav-tab whitespace-nowrap" onclick="switchTab('food')">Food 🍿</div>
+      <div id="tab-offers" class="nav-tab whitespace-nowrap" onclick="switchTab('offers')">Offers 🎁</div>
+    </div>
+  </header>
+
+  <!-- MAIN APP VIEW -->
+  <div id="mainAppView">
+    <div id="moviesTab" class="block max-w-5xl mx-auto p-4">
+      <h3 class="text-base font-bold mb-4 text-gray-800 border-l-4 border-red-600 pl-2">Now Showing</h3>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-5" id="movieGrid"></div>
+    </div>
+
+    <div id="playzoneTab" class="hidden max-w-5xl mx-auto p-4">
+      <div class="bg-gradient-to-r from-purple-700 to-indigo-800 rounded-2xl p-8 text-white mb-8 shadow-lg">
+        <h2 class="text-3xl font-bold mb-2">Gold Wings Playzone 🎮</h2>
+        <p class="text-sm opacity-90 max-w-md">Offline Booking Only. Check out our game prices below!</p>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6" id="playzoneGrid"></div>
+    </div>
+
+    <div id="foodTab" class="hidden max-w-5xl mx-auto p-4">
+      <h3 class="text-xl font-bold mb-6 text-gray-800">In-Cinema Snacks 🍿</h3>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4" id="foodGrid"></div>
+    </div>
+
+    <div id="offersTab" class="hidden max-w-5xl mx-auto p-4">
+      <h3 class="text-xl font-bold mb-6 text-gray-800">Available Offers 🎁</h3>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4" id="offersGrid"></div>
+    </div>
+  </div>
+
+  <!-- ADMIN PANEL VIEW -->
+  <div id="adminPanelView" class="hidden max-w-5xl mx-auto p-4">
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6 flex justify-between items-center">
+      <div>
+        <h2 class="text-xl font-bold text-gray-800">Admin Dashboard</h2>
+        <p class="text-sm text-gray-500">Welcome, Admin</p>
+      </div>
+      <button onclick="logout()" class="bg-red-100 text-red-600 px-4 py-2 rounded-lg text-sm font-bold">Logout Admin</button>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <!-- 1. ADD MOVIE -->
+      <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-200">
+        <h3 class="font-bold text-lg mb-4 text-red-600">🎬 Add Movie</h3>
+        <input type="text" id="adminMovieName" placeholder="Movie Name" class="w-full border p-2 mb-2 rounded text-sm">
+        <div class="flex gap-2 mb-2">
+          <input type="date" id="adminMovieDate" class="w-full border p-2 rounded text-sm text-gray-500">
+          <input type="time" id="adminMovieTime" class="w-full border p-2 rounded text-sm text-gray-500">
+        </div>
+        <label class="text-xs text-gray-500 mb-1 block">Upload Image</label>
+        <input type="file" id="adminMovieImg" accept="image/*" class="w-full border p-2 mb-3 rounded text-sm bg-gray-50">
+        <button onclick="adminAddMovie()" class="bg-red-600 text-white px-4 py-2 rounded w-full font-bold text-sm">Add Movie</button>
+      </div>
+
+      <!-- 2. ADD PLAYZONE -->
+      <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-200">
+        <h3 class="font-bold text-lg mb-4 text-purple-600">🎮 Add Playzone Game</h3>
+        <input type="text" id="adminGameName" placeholder="Game Name (e.g. VR Racing)" class="w-full border p-2 mb-2 rounded text-sm">
+        <input type="text" id="adminGamePrice" placeholder="Price (e.g. ₹200 / 30m)" class="w-full border p-2 mb-2 rounded text-sm">
+        <label class="text-xs text-gray-500 mb-1 block">Upload Image</label>
+        <input type="file" id="adminGameImg" accept="image/*" class="w-full border p-2 mb-3 rounded text-sm bg-gray-50">
+        <button onclick="adminAddGame()" class="bg-purple-600 text-white px-4 py-2 rounded w-full font-bold text-sm">Add Game</button>
+      </div>
+
+      <!-- 3. ADD FOOD -->
+      <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-200">
+        <h3 class="font-bold text-lg mb-4 text-orange-600">🍿 Add Food Item</h3>
+        <input type="text" id="adminFoodName" placeholder="Food Name (e.g. Popcorn)" class="w-full border p-2 mb-2 rounded text-sm">
+        <input type="text" id="adminFoodPrice" placeholder="Price (e.g. ₹150)" class="w-full border p-2 mb-2 rounded text-sm">
+        <label class="text-xs text-gray-500 mb-1 block">Upload Image</label>
+        <input type="file" id="adminFoodImg" accept="image/*" class="w-full border p-2 mb-3 rounded text-sm bg-gray-50">
+        <button onclick="adminAddFood()" class="bg-orange-600 text-white px-4 py-2 rounded w-full font-bold text-sm">Add Food</button>
+      </div>
+
+      <!-- 4. ADD OFFER -->
+      <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-200">
+        <h3 class="font-bold text-lg mb-4 text-green-600">🎁 Add Offer</h3>
+        <input type="text" id="adminOfferCode" placeholder="Coupon Code (e.g. GOLD50)" class="w-full border p-2 mb-2 rounded text-sm uppercase">
+        <input type="text" id="adminOfferDesc" placeholder="Description (e.g. ₹50 Off)" class="w-full border p-2 mb-2 rounded text-sm">
+        <select id="adminOfferFor" class="w-full border p-2 mb-3 rounded text-sm text-gray-600">
+          <option value="All Bookings">Offer For: All Bookings</option>
+          <option value="Movie Booking">Offer For: Movie</option>
+          <option value="Food Order">Offer For: Food</option>
+        </select>
+        <button onclick="adminAddOffer()" class="bg-green-600 text-white px-4 py-2 rounded w-full font-bold text-sm">Publish Offer</button>
+      </div>
+    </div>
+
+    <!-- LISTS FOR DELETE -->
+    <div class="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-200">
+        <h3 class="font-bold text-sm mb-3 text-gray-600">Manage Movies</h3>
+        <div id="adminMovieList" class="space-y-2 max-h-60 overflow-y-auto"></div>
+      </div>
+      <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-200">
+        <h3 class="font-bold text-sm mb-3 text-gray-600">Manage Playzone</h3>
+        <div id="adminGameList" class="space-y-2 max-h-60 overflow-y-auto"></div>
+      </div>
+      <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-200">
+        <h3 class="font-bold text-sm mb-3 text-gray-600">Manage Food</h3>
+        <div id="adminFoodList" class="space-y-2 max-h-60 overflow-y-auto"></div>
+      </div>
+      <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-200">
+        <h3 class="font-bold text-sm mb-3 text-gray-600">Manage Offers</h3>
+        <div id="adminOfferList" class="space-y-2 max-h-60 overflow-y-auto"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SEAT & TICKET PAGES -->
+  <div id="seatPage" class="hidden max-w-2xl mx-auto p-2 mt-2 bg-white fixed inset-0 z-50 overflow-y-auto pb-24">
+    <div class="p-3 border-b mb-2"><button onclick="showPage('homePage')" class="text-sm font-bold">&larr; Back</button></div>
+    <div id="row-Recliner" class="flex flex-col items-center mb-1"></div>
+    <div id="row-Gold" class="flex flex-col items-center"></div>
+    <div id="row-Silver" class="flex flex-col items-center"></div>
+    <div class="mt-8 mb-4 flex flex-col items-center w-full"><div class="screen-box"></div></div>
+    <div class="fixed bottom-0 w-full bg-white border-t p-3 flex justify-between z-50">
+      <div><p class="text-[10px]"><span id="ticketCountDisplay">0</span> / <span id="maxTicketDisplay">0</span> Tickets</p><p class="text-sm font-bold" id="selectedSeatsText">No seats</p><p class="text-lg font-bold">₹<span id="totalAmount">0</span></p></div>
+      <button onclick="handlePayButtonClick()" id="payBtn" class="bg-green-500 text-white px-5 rounded font-bold text-xs" disabled>Select Seats</button>
+    </div>
+  </div>
+
+  <div id="ticketPage" class="hidden max-w-sm mx-auto p-4 mt-6 text-center">
+    <div class="bg-white p-6 rounded-xl border shadow-lg">
+      <h2 class="text-xl font-bold mb-4">Booking Confirmed</h2>
+      <div id="qrcode" class="flex justify-center mb-4"></div>
+      <p class="text-sm font-bold" id="ticketMovie"></p>
+      <p class="text-sm" id="ticketSeats"></p>
+      <p class="text-sm">₹<span id="ticketAmount"></span></p>
+      <button onclick="showPage('homePage')" class="w-full bg-gray-800 text-white py-2 rounded mt-4">Home</button>
+    </div>
+  </div>
+
+  <!-- MODALS -->
+  <div id="ticketModal" class="hidden fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4">
+    <div class="bg-white w-full max-w-sm rounded-xl p-5 text-center animate-slide-up">
+      <h3 class="font-bold mb-4">How many seats?</h3>
+      <div class="grid grid-cols-5 gap-2 mb-4" id="countGrid"></div>
+      <input type="number" id="customTicketInput" placeholder="Custom" class="border p-2 rounded w-full mb-4 text-center">
+      <button onclick="closeModal('ticketModal')" class="text-gray-500 text-sm">Cancel</button>
+    </div>
+  </div>
+
+  <div id="authModal" class="hidden fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4">
+    <div class="bg-white w-full max-w-sm rounded-xl p-6 relative">
+      <button onclick="closeModal('authModal')" class="absolute top-2 right-4 text-gray-400 text-xl">✕</button>
+      <h3 id="authTitle" class="text-xl font-bold text-center mb-5">Sign Up</h3>
+      <div id="signupFields" class="space-y-3">
+        <input type="text" id="authName" placeholder="Full Name" class="w-full border p-2 rounded text-sm">
+        <input type="email" id="authEmail" placeholder="Email" class="w-full border p-2 rounded text-sm">
+        <input type="tel" id="authMobile" placeholder="Mobile" class="w-full border p-2 rounded text-sm">
+      </div>
+      <div id="signinFields" class="hidden space-y-3">
+        <input type="text" id="authIdentity" placeholder="Email, Mobile, or 'admin'" class="w-full border p-2 rounded text-sm">
+      </div>
+      <input type="password" id="authPassword" placeholder="Password (or 'admin')" class="w-full border p-2 rounded text-sm mt-3">
+      <button onclick="doAuth()" id="authSubmitBtn" class="w-full bg-red-600 text-white py-2 rounded mt-4 font-bold">Sign Up</button>
+      <p class="text-center text-xs mt-3" id="toggleAuthText">Have an account? <span onclick="toggleAuthMode()" class="text-red-600 font-bold cursor-pointer">Sign In</span></p>
+    </div>
+  </div>
+
+  <div id="checkoutModal" class="hidden fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4">
+    <div class="bg-white w-full max-w-sm rounded-xl p-6 relative">
+      <button onclick="closeModal('checkoutModal')" class="absolute top-2 right-4 text-gray-400 text-xl">✕</button>
+      <h3 class="text-lg font-bold text-center mb-4">Checkout</h3>
+      <p class="text-sm flex justify-between mb-2"><span>Total:</span> <span class="font-bold">₹<span id="checkoutTotal">0</span></span></p>
+      <div class="flex gap-2 mb-2">
+        <input type="text" id="couponInput" placeholder="Coupon Code" class="w-full border p-2 rounded uppercase text-sm">
+        <button onclick="applyCoupon()" class="bg-gray-800 text-white px-3 rounded text-xs font-bold">Apply</button>
+      </div>
+      <p id="couponMsg" class="text-xs mb-3 hidden"></p>
+      <button onclick="processPayment()" class="w-full bg-green-500 text-white py-2 rounded font-bold">Pay ₹<span id="finalPayAmount">0</span></button>
+    </div>
+  </div>
+
+  <div id="offerPopupModal" class="hidden fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4">
+    <div class="bg-white w-full max-w-sm rounded-xl overflow-hidden text-center relative">
+      <button onclick="closeModal('offerPopupModal')" class="absolute top-2 right-4 text-white text-2xl font-bold z-10">×</button>
+      <div class="bg-red-600 p-6 text-white"><h3 class="text-2xl font-bold mb-1">🎉 Offer!</h3><p id="popupOfferFor" class="text-sm font-bold bg-white/20 rounded p-1 inline-block mb-2"></p><p id="popupOfferDesc" class="text-sm"></p></div>
+      <div class="p-6 -mt-4 bg-white rounded-t-xl relative">
+        <p class="text-sm mb-2">Use Code:</p>
+        <div class="border-2 border-dashed border-red-500 bg-red-50 p-2 mb-4"><p id="popupOfferCode" class="text-xl font-black text-red-600 tracking-widest"></p></div>
+        <button onclick="closeModal('offerPopupModal')" class="w-full bg-gray-900 text-white py-2 rounded">Grab</button>
+      </div>
+    </div>
+  </div>
+<script>
+  // --- DATA ---
+  let movies = JSON.parse(localStorage.getItem('gw_movies')) || [];
+  let playzone = JSON.parse(localStorage.getItem('gw_playzone')) || [];
+  let food = JSON.parse(localStorage.getItem('gw_food')) || [];
+  let offers = JSON.parse(localStorage.getItem('gw_offers')) || [];
+  
+  let currentUser = JSON.parse(localStorage.getItem('gw_user')) || null;
+  let authMode = 'signup';
+  let currentBooking = { movieName: "", time: "", seats: [], total: 0, discount: 0 };
+  let maxTicketsAllowed = 1; 
+  let tempMovie = "", tempTime = ""; 
+  let bookedSeatsDB = ["G-B05", "G-C12", "S-E07", "S-F03", "R-A04"];
+
+  window.onload = function() {
+    updateAuthUI();
+    switchTab('movies');
+    renderMovies();
+    renderPlayzone();
+    renderFood();
+    renderOffers();
+  };
+
+  // --- RENDER FUNCTIONS ---
+  function renderMovies() {
+    const grid = document.getElementById('movieGrid');
+    grid.innerHTML = movies.length ? '' : '<p class="text-sm text-gray-500">No movies currently showing.</p>';
+    movies.forEach(m => {
+      grid.innerHTML += `
+        <div class="bg-white rounded-xl shadow-sm border flex flex-row h-44 hover:shadow-md transition-shadow">
+          <img src="${m.poster}" class="w-32 object-cover bg-gray-200">
+          <div class="p-4 flex flex-col justify-between flex-1">
+            <div><h4 class="text-base font-bold text-gray-800">${m.name}</h4><p class="text-xs text-gray-500 mt-1">${m.lang || 'Hindi'} • UA</p></div>
+            <div class="flex flex-wrap gap-2 mt-3">
+              ${m.times.map(t => `<button onclick="openTicketCountModal('${m.name}', '${t}')" class="border border-green-500 text-green-600 px-3 py-1.5 rounded-md text-[11px] font-bold hover:bg-green-50">${t}</button>`).join('')}
+            </div>
+          </div>
+        </div>`;
+    });
+  }
+
+  function renderPlayzone() {
+    const grid = document.getElementById('playzoneGrid');
+    grid.innerHTML = playzone.length ? '' : '<p class="text-sm text-gray-500">No games available.</p>';
+    playzone.forEach(g => {
+      grid.innerHTML += `
+        <div class="bg-white rounded-xl shadow-sm border overflow-hidden">
+          <img src="${g.img}" class="w-full h-40 object-cover">
+          <div class="p-4">
+            <h4 class="text-base font-bold text-gray-800">${g.name}</h4>
+            <div class="flex justify-between items-center mt-2">
+              <span class="text-sm font-bold text-green-600">${g.price}</span>
+              <span class="text-xs bg-gray-100 px-2 py-1 rounded text-gray-500 font-bold">Offline Booking</span>
+            </div>
+          </div>
+        </div>`;
+    });
+  }
+
+  function renderFood() {
+    const grid = document.getElementById('foodGrid');
+    grid.innerHTML = food.length ? '' : '<p class="text-sm text-gray-500">No snacks available.</p>';
+    food.forEach(f => {
+      grid.innerHTML += `
+        <div class="bg-white rounded-xl shadow-sm border p-4 flex gap-4 items-center">
+          <img src="${f.img}" class="w-20 h-20 rounded-lg object-cover">
+          <div class="flex-1"><h4 class="text-sm font-bold text-gray-800">${f.name}</h4><p class="text-sm font-bold text-gray-900 mt-1">${f.price}</p></div>
+        </div>`;
+    });
+  }
+
+  function renderOffers() {
+    const grid = document.getElementById('offersGrid');
+    grid.innerHTML = offers.length ? '' : '<p class="text-sm text-gray-500">No offers right now.</p>';
+    offers.forEach(o => {
+      grid.innerHTML += `
+        <div class="bg-white rounded-xl shadow-sm border p-6 text-center">
+          <div class="text-4xl mb-2">🎁</div>
+          <p class="text-xs font-bold text-blue-600 bg-blue-50 inline-block px-2 py-1 rounded mb-2">${o.for || 'All Bookings'}</p>
+          <h3 class="text-xl font-bold text-gray-800 mb-2">${o.desc}</h3>
+          <p class="text-sm text-gray-500 mb-4">Use code <span class="font-bold border border-dashed px-2 py-1 bg-gray-50 rounded">${o.code}</span></p>
+        </div>`;
+    });
+  }
+
+  function showOfferPopup(offer) {
+    document.getElementById('popupOfferFor').innerText = offer.for || 'All Bookings';
+    document.getElementById('popupOfferDesc').innerText = offer.desc;
+    document.getElementById('popupOfferCode').innerText = offer.code;
+    document.getElementById('offerPopupModal').classList.remove('hidden');
+  }
+
+  // --- NAVIGATION ---
+  function switchTab(tabName) {
+    ['moviesTab','playzoneTab','foodTab','offersTab'].forEach(id => document.getElementById(id).classList.add('hidden'));
+    ['movies','playzone','food','offers'].forEach(id => document.getElementById('tab-'+id).classList.remove('active'));
+    
+    document.getElementById(tabName + 'Tab').classList.remove('hidden');
+    document.getElementById('tab-' + tabName).classList.add('active');
+    
+    document.getElementById('seatPage').classList.add('hidden');
+    document.getElementById('ticketPage').classList.add('hidden');
+    document.getElementById('mainAppView').classList.remove('hidden');
+    document.getElementById('adminPanelView').classList.add('hidden');
+    document.getElementById('mainNav').classList.remove('hidden');
+  }
+
+  function showPage(pageId) {
+    document.getElementById('mainAppView').classList.add('hidden');
+    document.getElementById('adminPanelView').classList.add('hidden');
+    document.getElementById('seatPage').classList.add('hidden');
+    document.getElementById('ticketPage').classList.add('hidden');
+    
+    if(pageId === 'seatPage') document.getElementById('seatPage').classList.remove('hidden');
+    if(pageId === 'ticketPage') document.getElementById('ticketPage').classList.remove('hidden');
+    if(pageId === 'homePage') document.getElementById('mainAppView').classList.remove('hidden');
+    window.scrollTo(0,0);
+  }
+
+  function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+    // --- SEAT LOGIC ---
+    const countGrid = document.getElementById('countGrid');
+    for(let i=1; i<=10; i++) {
+      countGrid.innerHTML += `<button onclick="selectTicketCount(${i})" class="border rounded-lg py-2 text-sm font-bold hover:bg-green-50">${i}</button>`;
+    }
+    function openTicketCountModal(movie, time) { tempMovie = movie; tempTime = time; document.getElementById('ticketModal').classList.remove('hidden'); }
+    function selectTicketCount(c) { maxTicketsAllowed = c; closeModal('ticketModal'); startSeatSelection(); }
+
+    function startSeatSelection() {
+      currentBooking = { movieName: tempMovie, time: tempTime, seats: [], total: 0, discount: 0 };
+      document.getElementById('maxTicketDisplay').innerText = maxTicketsAllowed;
+      document.getElementById('row-Recliner').innerHTML = createRow('R', 'A', 12, 6);
+      document.getElementById('row-Gold').innerHTML = createRow('G', 'B', 18, 9) + createRow('G', 'C', 18, 9);
+      document.getElementById('row-Silver').innerHTML = createRow('S', 'E', 14, 7) + createRow('S', 'F', 14, 7);
+      updateBottomBar();
+      showPage('seatPage');
+    }
+
+    function createRow(prefix, row, num, aisle) {
+      let html = `<div class="flex items-center mb-1"><div class="w-4 text-[8px] text-gray-400 mr-1">${row}</div>`;
+      for(let i=1; i<=num; i++) {
+        let s = `${prefix}-${row}${String(i).padStart(2,'0')}`;
+        let isB = bookedSeatsDB.includes(s);
+        html += `<div id="seat-${s}" class="seat ${isB?'booked':'available'} ${i===aisle?'aisle':''}" onclick="toggleSeat('${s}','${prefix}','${row}','${i}')">${row}${String(i).padStart(2,'0')}</div>`;
+      }
+      return html + `<div class="w-4 text-[8px] text-gray-400 ml-1">${row}</div></div>`;
+    }
+
+    function toggleSeat(id, cls, row, num) {
+      if(bookedSeatsDB.includes(id)) return;
+      const el = document.getElementById(`seat-${id}`);
+      const idx = currentBooking.seats.findIndex(s => s.id === id);
+      if(idx > -1) {
+        currentBooking.seats.splice(idx, 1);
+        el.classList.replace('selected', 'available');
+        document.querySelectorAll('.seat.blocked').forEach(x => x.classList.remove('blocked'));
+      } else {
+        if(currentBooking.seats.length >= maxTicketsAllowed) return;
+        currentBooking.seats.push({ id, cls, name: `${row}${num}` });
+        el.classList.replace('available', 'selected');
+        if(currentBooking.seats.length === maxTicketsAllowed) document.querySelectorAll('.seat.available').forEach(x => x.classList.add('blocked'));
+      }
+      updateBottomBar();
+    }
+
+    function updateBottomBar() {
+      let total = 0;
+      let names = currentBooking.seats.map(s => {
+        if(s.cls==='R') total+=400; if(s.cls==='G') total+=250; if(s.cls==='S') total+=150;
+        return s.name;
+      });
+      currentBooking.total = total;
+      document.getElementById('ticketCountDisplay').innerText = currentBooking.seats.length;
+      document.getElementById('selectedSeatsText').innerText = names.length ? `Seats: ${names.join(', ')}` : 'No seats';
+      document.getElementById('totalAmount').innerText = total;
+      
+      const btn = document.getElementById('payBtn');
+      if(currentBooking.seats.length === 0) { btn.disabled = true; btn.innerText = "Select Seats"; }
+      else if(currentBooking.seats.length < maxTicketsAllowed) { btn.disabled = true; btn.innerText = `Select ${maxTicketsAllowed - currentBooking.seats.length} more`; }
+      else { btn.disabled = false; btn.innerText = currentUser ? `Pay ₹${total}` : `Login to Pay`; }
+    }
+
+    // --- CHECKOUT ---
+    function handlePayButtonClick() {
+      if(!currentUser) { openAuthModal(); return; }
+      document.getElementById('checkoutTotal').innerText = currentBooking.total;
+      document.getElementById('finalPayAmount').innerText = currentBooking.total;
+      document.getElementById('couponInput').value = '';
+      document.getElementById('couponMsg').classList.add('hidden');
+      currentBooking.discount = 0;
+      document.getElementById('checkoutModal').classList.remove('hidden');
+    }
+
+    function applyCoupon() {
+      const code = document.getElementById('couponInput').value.trim().toUpperCase();
+      const msg = document.getElementById('couponMsg');
+      const validOffer = offers.find(o => o.code === code);
+      
+      if(validOffer) {
+        // Discount logic (Testing ke liye flat ₹50 off)
+        currentBooking.discount = 50; 
+        let finalAmount = currentBooking.total - currentBooking.discount;
+        if(finalAmount < 0) finalAmount = 0;
+        document.getElementById('finalPayAmount').innerText = finalAmount;
+        msg.innerText = "Coupon Applied! ₹50 Off"; msg.className = "text-xs mt-2 text-green-600 font-bold block";
+      } else {
+        msg.innerText = "Invalid Coupon Code"; msg.className = "text-xs mt-2 text-red-600 font-bold block";
+      }
+    }
+
+    function processPayment() {
+      const btn = document.querySelector('#checkoutModal button:last-child');
+      btn.innerHTML = "Processing..."; btn.disabled = true;
+      setTimeout(() => {
+        closeModal('checkoutModal');
+        document.getElementById('ticketMovie').innerText = currentBooking.movieName;
+        document.getElementById('ticketSeats').innerText = currentBooking.seats.map(s=>s.name).join(', ');
+        let finalAmt = currentBooking.total - currentBooking.discount;
+        document.getElementById('ticketAmount').innerText = finalAmt < 0 ? 0 : finalAmt;
+        
+        document.getElementById("qrcode").innerHTML = ""; 
+        new QRCode(document.getElementById("qrcode"), { text: `Movie: ${currentBooking.movieName} | Seats: ${currentBooking.seats.map(s=>s.name).join(',')}`, width: 100, height: 100 });
+        currentBooking.seats.forEach(s => bookedSeatsDB.push(s.id));
+        
+        showPage('ticketPage');
+        btn.innerHTML = `Pay ₹<span id="finalPayAmount">${currentBooking.total}</span>`; btn.disabled = false;
+      }, 1500);
+    }
+
+    // --- LOGIN / ADMIN LOGIN ---
+    function openAuthModal() { setAuthMode('signup'); document.getElementById('authModal').classList.remove('hidden'); }
+    function toggleAuthMode() { setAuthMode(authMode === 'signup' ? 'signin' : 'signup'); }
+    function setAuthMode(mode) {
+      authMode = mode;
+      document.getElementById('authTitle').innerText = mode === 'signup' ? "Sign Up" : "Sign In";
+      document.getElementById('authSubmitBtn').innerText = mode === 'signup' ? "Sign Up" : "Sign In";
+      document.getElementById('signupFields').classList.toggle('hidden', mode !== 'signup');
+      document.getElementById('signinFields').classList.toggle('hidden', mode !== 'signin');
+    }
+
+    function doAuth() {
+      let pass = document.getElementById('authPassword').value;
+      
+      if(authMode === 'signin') {
+        let id = document.getElementById('authIdentity').value.trim().toLowerCase();
+        if(id === 'admin' && pass === 'admin') {
+          closeModal('authModal');
+          document.getElementById('mainAppView').classList.add('hidden');
+          document.getElementById('mainNav').classList.add('hidden');
+          document.getElementById('adminPanelView').classList.remove('hidden');
+          renderAdminLists();
+          return;
+        }
+      }
+
+      let name = document.getElementById('authName').value;
+      let id = authMode === 'signup' ? document.getElementById('authMobile').value : document.getElementById('authIdentity').value;
+      if(!pass || !id) { alert("Fill fields"); return; }
+      
+      currentUser = { name: authMode === 'signup' ? name : (id.includes('@') ? id.split('@')[0] : "User") };
+      localStorage.setItem('gw_user', JSON.stringify(currentUser));
+      closeModal('authModal');
+      updateAuthUI();
+      updateBottomBar();
+      handlePayButtonClick(); 
+    }
+
+    function updateAuthUI() {
+      if(currentUser) {
+        document.getElementById('loginBtnTop').classList.add('hidden');
+        document.getElementById('userProfile').classList.remove('hidden');
+        document.getElementById('usernameDisplay').innerText = `Hi, ${currentUser.name}`;
+      } else {
+        document.getElementById('loginBtnTop').classList.remove('hidden');
+        document.getElementById('userProfile').classList.add('hidden');
+      }
+    }
+
+    function logout() { 
+      localStorage.removeItem('gw_user'); 
+      currentUser = null; 
+      updateAuthUI(); 
+      switchTab('movies');
+    }
+
+    // --- ADMIN LOGIC ---
+    function getBase64(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = error => reject(error);
+      });
+    }
+
+    async function adminAddMovie() {
+      let name = document.getElementById('adminMovieName').value;
+      let date = document.getElementById('adminMovieDate').value;
+      let time = document.getElementById('adminMovieTime').value;
+      let fileInput = document.getElementById('adminMovieImg');
+      if(!name || !time) { alert("Name & Time required"); return; }
+      
+      let poster = 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?q=80&w=600&auto=format&fit=crop';
+      if (fileInput.files && fileInput.files[0]) { poster = await getBase64(fileInput.files[0]); }
+      
+      let tArr = time.split(':'); let h = parseInt(tArr[0]); let ampm = h >= 12 ? 'PM' : 'AM'; h = h % 12 || 12;
+      let fTime = date ? `${date} | ${h}:${tArr[1]} ${ampm}` : `${h}:${tArr[1]} ${ampm}`;
+
+      movies.push({ id: Date.now(), name, lang: "Hindi", poster, times: [fTime] });
+      localStorage.setItem('gw_movies', JSON.stringify(movies));
+      renderMovies(); renderAdminLists(); alert("Movie Added!"); 
+      document.getElementById('adminMovieName').value = ''; document.getElementById('adminMovieImg').value = '';
+    }
+
+    async function adminAddGame() {
+      let name = document.getElementById('adminGameName').value;
+      let price = document.getElementById('adminGamePrice').value;
+      let fileInput = document.getElementById('adminGameImg');
+      if(!name || !price) { alert("Name & Price required"); return; }
+      
+      let img = 'https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=600&auto=format&fit=crop';
+      if (fileInput.files && fileInput.files[0]) { img = await getBase64(fileInput.files[0]); }
+
+      playzone.push({ id: Date.now(), name, price, img });
+      localStorage.setItem('gw_playzone', JSON.stringify(playzone));
+      renderPlayzone(); renderAdminLists(); alert("Game Added!"); 
+      document.getElementById('adminGameName').value = ''; document.getElementById('adminGameImg').value = '';
+    }
+
+    async function adminAddFood() {
+      let name = document.getElementById('adminFoodName').value;
+      let price = document.getElementById('adminFoodPrice').value;
+      let fileInput = document.getElementById('adminFoodImg');
+      if(!name || !price) { alert("Name & Price required"); return; }
+      
+      let img = 'https://images.unsplash.com/photo-1578849278619-e73505e9610f?q=80&w=200&auto=format&fit=crop';
+      if (fileInput.files && fileInput.files[0]) { img = await getBase64(fileInput.files[0]); }
+
+      food.push({ id: Date.now(), name, price, img });
+      localStorage.setItem('gw_food', JSON.stringify(food));
+      renderFood(); renderAdminLists(); alert("Food Added!"); 
+      document.getElementById('adminFoodName').value = ''; document.getElementById('adminFoodImg').value = '';
+    }
+
+    function adminAddOffer() {
+      let code = document.getElementById('adminOfferCode').value.trim().toUpperCase();
+      let desc = document.getElementById('adminOfferDesc').value;
+      let offerFor = document.getElementById('adminOfferFor').value; // Naya dropdown
+      if(!code || !desc) { alert("Code & Desc required"); return; }
+      
+      offers.push({ id: Date.now(), code, desc, for: offerFor });
+      localStorage.setItem('gw_offers', JSON.stringify(offers));
+      renderOffers(); renderAdminLists(); 
+      
+      // Admin ne offer banaya, tabhi popup dikhao
+      showOfferPopup({ code, desc, for: offerFor }); 
+      
+      alert("Offer Published!"); 
+      document.getElementById('adminOfferCode').value = ''; document.getElementById('adminOfferDesc').value = '';
+    }
+
+    function renderAdminLists() {
+      // Movies
+      let mList = document.getElementById('adminMovieList'); mList.innerHTML = '';
+      movies.forEach(m => { mList.innerHTML += `<div class="flex justify-between items-center bg-gray-50 p-2 rounded border"><div class="flex items-center gap-2"><img src="${m.poster}" class="w-8 h-8 rounded object-cover"><p class="text-xs font-bold">${m.name}</p></div><button onclick="deleteItem('movies', ${m.id})" class="text-red-500 font-bold text-xs">🗑️</button></div>`; });
+      
+      // Games
+      let gList = document.getElementById('adminGameList'); gList.innerHTML = '';
+      playzone.forEach(g => { gList.innerHTML += `<div class="flex justify-between items-center bg-gray-50 p-2 rounded border"><div class="flex items-center gap-2"><img src="${g.img}" class="w-8 h-8 rounded object-cover"><p class="text-xs font-bold">${g.name}</p></div><button onclick="deleteItem('playzone', ${g.id})" class="text-red-500 font-bold text-xs">🗑️</button></div>`; });
+      
+      // Food
+      let fList = document.getElementById('adminFoodList'); fList.innerHTML = '';
+      food.forEach(f => { fList.innerHTML += `<div class="flex justify-between items-center bg-gray-50 p-2 rounded border"><div class="flex items-center gap-2"><img src="${f.img}" class="w-8 h-8 rounded object-cover"><p class="text-xs font-bold">${f.name}</p></div><button onclick="deleteItem('food', ${f.id})" class="text-red-500 font-bold text-xs">🗑️</button></div>`; });
+      
+      // Offers
+      let oList = document.getElementById('adminOfferList'); oList.innerHTML = '';
+      offers.forEach(o => { oList.innerHTML += `<div class="flex justify-between items-center bg-gray-50 p-2 rounded border"><div><p class="text-xs font-bold text-green-600">${o.code} <span class="text-[9px] text-gray-500 font-normal">(${o.for || 'All'})</span></p><p class="text-[10px] text-gray-500">${o.desc}</p></div><button onclick="deleteItem('offers', ${o.id})" class="text-red-500 font-bold text-xs">🗑️</button></div>`; });
+    }
+
+    function deleteItem(type, id) {
+      if(!confirm("Delete this item?")) return;
+      if(type === 'movies') { movies = movies.filter(x => x.id !== id); localStorage.setItem('gw_movies', JSON.stringify(movies)); renderMovies(); }
+      if(type === 'playzone') { playzone = playzone.filter(x => x.id !== id); localStorage.setItem('gw_playzone', JSON.stringify(playzone)); renderPlayzone(); }
+      if(type === 'food') { food = food.filter(x => x.id !== id); localStorage.setItem('gw_food', JSON.stringify(food)); renderFood(); }
+      if(type === 'offers') { offers = offers.filter(x => x.id !== id); localStorage.setItem('gw_offers', JSON.stringify(offers)); renderOffers(); }
+      renderAdminLists();
+    }
+  </script>
+</body>
+</html>
